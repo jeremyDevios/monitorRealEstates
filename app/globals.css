@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* Thème sombre unique — interface moderne type dashboard. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0d10;
+  --surface: #12161a;
+  --surface-2: #1a2127;
+  --line: #232c34;
+  --ink: #e8ebef;
+  --muted: #8b96a1;
+  --accent: #34d399;
+  --accent-fg: #04281c;
+  --offline: #f87171;
+  --warn: #fbbf24;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-offline: var(--offline);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* Barres de défilement discrètes sur le thème sombre. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
