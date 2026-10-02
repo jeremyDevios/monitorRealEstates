@@ -85,4 +85,30 @@ WantedBy=multi-user.target
 sudo systemctl enable --now monitor-real-estates
 ```
 
+### HTTPS avec Caddy (recommandé)
+
+Le cookie de session porte le drapeau `Secure` en production : les navigateurs le rejettent en HTTP clair, ce qui casse la session. On sert donc l'app derrière Caddy en HTTPS — certificat auto-signé sur le réseau local, l'avertissement du navigateur s'accepte une fois :
+
+```bash
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install caddy
+```
+
+`/etc/caddy/Caddyfile` (adapter l'IP et le port) :
+
+```
+192.168.1.241 {
+	reverse_proxy localhost:3000
+	tls internal
+}
+```
+
+```bash
+sudo systemctl reload caddy
+```
+
+L'app est accessible sur https://192.168.1.241 (le HTTP est redirigé). Avec un vrai nom de domaine public, remplacer `tls internal` par le domaine : Caddy obtiendra un certificat Let's Encrypt automatiquement.
+
 **Sans écran, un captcha ne peut pas être résolu à la main** : si Leboncoin en affiche un pendant une vérification, elle sera « non concluante », le cooldown s'appliquera, et la saisie manuelle reste le secours (comme sur le poste de dev).
