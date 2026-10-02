@@ -6,5 +6,7 @@ CREATE TABLE `rate_history` (
 	`source` text NOT NULL,
 	`recorded_at` integer DEFAULT (unixepoch()) NOT NULL
 );
+--> statement-breakpoint
 CREATE INDEX `idx_rate_history_bank` ON `rate_history` (`bank`);
+--> statement-breakpoint
 CREATE INDEX `idx_rate_history_recorded` ON `rate_history` (`recorded_at`);
