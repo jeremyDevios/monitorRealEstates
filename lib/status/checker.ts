@@ -20,6 +20,16 @@ const OFFLINE_MARKERS = [
 // (protection anti-bot). On ne retente pas avant la fin de la restriction.
 const RESTRICTION_MARKERS = ["accès temporairement restreint", "accès restreint"];
 
+/**
+ * Retire le contenu des balises <script> : Leboncoin inline un dictionnaire i18n
+ * contenant les textes des pages d'erreur (« Annonce introuvable », « annonce
+ * supprimée »…), qui matchent les marqueurs sur TOUTES les pages, y compris en ligne.
+ * Les marqueurs ne doivent être cherchés que dans le contenu rendu.
+ */
+function stripScripts(html: string): string {
+  return html.replace(/<script[\s\S]*?<\/script>/gi, "");
+}
+
 export type CheckOutcome = {
   conclusive: boolean;
   online: boolean;
@@ -74,7 +84,7 @@ export async function checkListingUrl(url: string, opts?: { headed?: boolean }):
     };
   }
   const { html, finalUrl, status, challenged } = page;
-  const lower = html.toLowerCase();
+  const lower = stripScripts(html).toLowerCase();
   // Bannissement « Accès temporairement restreint » : signalé à l'appelant qui pose le cooldown.
   if (RESTRICTION_MARKERS.some((m) => lower.includes(m))) {
     return {
