@@ -58,6 +58,18 @@ function displayAvailable(): boolean {
 
 let loggedHeadlessFallback = false;
 
+/** Vrai si le contexte répond encore (sinon le navigateur a été fermé : fenêtre
+ * fermée à la main, arrêt brutal, kill…). `pages()` lève l'erreur
+ * « Target page, context or browser has been closed » sur un contexte mort. */
+async function contextAlive(ctx: BrowserContext): Promise<boolean> {
+  try {
+    await ctx.pages();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function ensureBrowserContext(headed = false): Promise<BrowserContext> {
   // Sur un serveur sans affichage (Orange Pi, VPS…), le mode « avec fenêtre » retombe
   // en headless : sinon Chromium échouerait à ouvrir une fenêtre.
@@ -67,7 +79,16 @@ export function ensureBrowserContext(headed = false): Promise<BrowserContext> {
     console.log("[lbc] aucun affichage détecté : la navigation se fera en headless.");
   }
   const slot = effective ? headedCtx : headlessCtx;
-  if (slot) return slot;
+  if (slot) {
+    // Le navigateur a pu être fermé entre deux requêtes : on relance un contexte
+    // frais (même profil persistant, cookies conservés) au lieu de réutiliser un mort.
+    return slot.then(async (ctx) => {
+      if (await contextAlive(ctx)) return ctx;
+      if (effective) headedCtx = null;
+      else headlessCtx = null;
+      return ensureBrowserContext(headed);
+    });
+  }
   const p = launchContext(effective).catch((err) => {
     if (effective) headedCtx = null;
     else headlessCtx = null;
