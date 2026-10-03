@@ -76,14 +76,48 @@ function fromAdObject(o: Record<string, unknown>): Partial<ParsedListing> {
   const out: Partial<ParsedListing> = {};
   if (typeof o.subject === "string") out.title = o.subject;
   if (typeof o.body === "string") out.description = o.body;
-  out.priceCents = toCents(Array.isArray(o.price) ? o.price[0] : o.price);
-  out.habitableM2 = toArea(o.square ?? o.square_habitable ?? o.surface);
-  out.gardenM2 = toArea(o.square_garden ?? o.garden_surface ?? o.land_surface ?? o.square_land);
-  out.rooms = toRooms(o.rooms ?? o.room_count ?? o.number_rooms);
+  // price_cents (état __NEXT_DATA__) est déjà en centimes ; sinon price (tableau ou scalaire).
+  if (typeof o.price_cents === "number" && Number.isFinite(o.price_cents)) {
+    out.priceCents = Math.round(o.price_cents);
+  } else {
+    out.priceCents = toCents(Array.isArray(o.price) ? o.price[0] : o.price);
+  }
+  // Attributs étendus (__NEXT_DATA__) : valeurs brutes, sans unité (« 205 », « 6 »…).
+  const attrValue = (key: string): string | null => {
+    if (!Array.isArray(o.attributes)) return null;
+    for (const a of o.attributes) {
+      if (a && typeof a === "object" && (a as Record<string, unknown>).key === key) {
+        const v = (a as Record<string, unknown>).value;
+        return typeof v === "string" ? v : null;
+      }
+    }
+    return null;
+  };
+  const attrNumber = (key: string): number | null => {
+    const v = attrValue(key);
+    if (v == null) return null;
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  out.habitableM2 = toArea(o.square ?? o.square_habitable ?? o.surface) ?? attrNumber("square");
+  out.gardenM2 =
+    toArea(o.square_garden ?? o.garden_surface ?? o.land_surface ?? o.square_land) ??
+    attrNumber("land_plot_surface");
+  out.rooms = toRooms(o.rooms ?? o.room_count ?? o.number_rooms) ?? attrNumber("rooms");
+  const loc = o.location as Record<string, unknown> | undefined;
   if (typeof o.city === "string") out.city = o.city;
+  else if (typeof loc?.city === "string") out.city = loc.city;
   if (typeof o.zipcode === "string") out.postalCode = o.zipcode;
-  const images = Array.isArray(o.images) ? o.images : Array.isArray(o.pictures) ? o.pictures : null;
-  if (images) out.imageUrls = extractImageUrls(images);
+  else if (typeof loc?.zipcode === "string") out.postalCode = loc.zipcode;
+  // Images : tableau (ancien format) ou objet { urls: [...] } (__NEXT_DATA__).
+  if (Array.isArray(o.images) || Array.isArray(o.pictures)) {
+    const images = (Array.isArray(o.images) ? o.images : o.pictures) as unknown[];
+    out.imageUrls = extractImageUrls(images);
+  } else if (o.images && typeof o.images === "object" && Array.isArray((o.images as Record<string, unknown>).urls)) {
+    out.imageUrls = ((o.images as Record<string, unknown>).urls as unknown[]).filter(
+      (u): u is string => typeof u === "string",
+    );
+  }
   return out;
 }
 
@@ -101,7 +135,10 @@ function findAdObject(node: unknown, depth = 0): Record<string, unknown> | null 
     const o = node as Record<string, unknown>;
     const looksLikeAd =
       typeof o.subject === "string" &&
-      (o.price !== undefined || Array.isArray(o.images) || Array.isArray(o.pictures));
+      (o.price !== undefined ||
+        Array.isArray(o.images) ||
+        Array.isArray(o.pictures) ||
+        (o.images != null && typeof o.images === "object" && Array.isArray((o.images as Record<string, unknown>).urls)));
     if (looksLikeAd) return o;
     for (const v of Object.values(o)) {
       const r = findAdObject(v, depth + 1);
@@ -112,17 +149,35 @@ function findAdObject(node: unknown, depth = 0): Record<string, unknown> | null 
 }
 
 function fromPreloadedState($: cheerio.CheerioAPI): Partial<ParsedListing> {
+  // Ancienne époque Leboncoin : état préchargé dans #__PRELOADED_STATE__.
   const el = $("#__PRELOADED_STATE__").first();
-  if (!el.length) return {};
-  try {
-    let data: unknown = JSON.parse(el.text());
-    // Parfois double-encodé : le contenu est une chaîne JSON échappée.
-    if (typeof data === "string") data = JSON.parse(data);
-    const ad = findAdObject(data);
-    return ad ? fromAdObject(ad) : {};
-  } catch {
-    return {};
+  if (el.length) {
+    try {
+      let data: unknown = JSON.parse(el.text());
+      // Parfois double-encodé : le contenu est une chaîne JSON échappée.
+      if (typeof data === "string") data = JSON.parse(data);
+      const ad = findAdObject(data);
+      return ad ? fromAdObject(ad) : {};
+    } catch {
+      // état illisible : on tente __NEXT_DATA__ plus bas
+    }
   }
+  // Page actuelle : état Next.js sérialisé dans #__NEXT_DATA__, annonce dans
+  // props.pageProps.ad. Retour au parcours heuristique si ce chemin change.
+  const next = $("#__NEXT_DATA__").first();
+  if (next.length) {
+    try {
+      const data = JSON.parse(next.text()) as Record<string, unknown>;
+      const props = data.props as Record<string, unknown> | undefined;
+      const pageProps = props?.pageProps as Record<string, unknown> | undefined;
+      const direct = pageProps?.ad as Record<string, unknown> | undefined;
+      const found = direct && typeof direct.subject === "string" ? direct : findAdObject(data);
+      return found ? fromAdObject(found) : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }
 
 function fromJsonLd($: cheerio.CheerioAPI): Partial<ParsedListing> {
