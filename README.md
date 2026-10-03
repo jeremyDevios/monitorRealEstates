@@ -57,6 +57,7 @@ Chromium (Playwright) a des builds officiels `linux-arm64` : la récupération L
    echo "SESSION_SECRET=$(openssl rand -hex 32)" > .env.local
    # optionnel : DATA_DIR=/chemin/absolu, CHECK_CRON, RATES_CRON (voir .env.example)
    ```
+   En production le cookie de session est `Secure` : sans HTTPS, les navigateurs le rejettent et la session ne tient pas. Sur un réseau local de confiance servi en HTTP clair, définir `SESSION_SECURE=false` dans `.env.local` — sinon servir l'app en HTTPS (voir la section Caddy plus bas).
 5. **Base + premier compte** :
    ```bash
    npm run db:migrate

@@ -68,7 +68,11 @@ export async function createSession(userId: number): Promise<void> {
   store.set(SESSION_COOKIE, sign(payload), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // Secure en production par défaut. Opt-out explicite SESSION_SECURE=false
+    // pour un déploiement en HTTP clair sur un réseau local de confiance :
+    // un cookie Secure envoyé en HTTP est rejeté par le navigateur et la
+    // session ne tient pas.
+    secure: process.env.NODE_ENV === "production" && process.env.SESSION_SECURE !== "false",
     maxAge: SESSION_TTL_SECONDS,
     path: "/",
   });
