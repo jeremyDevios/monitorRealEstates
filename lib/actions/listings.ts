@@ -80,7 +80,10 @@ export async function addListingFromUrlAction(
       };
     }
     parsed = parseListingHtml(page.html);
-  } catch {
+  } catch (err) {
+    // On journalise la cause réelle (Chromium absent, timeout réseau…) dans les logs
+    // du serveur : le message renvoyé à l'utilisateur reste volontairement générique.
+    console.error("[add-listing] échec de la récupération Leboncoin :", err);
     return {
       error: "Impossible de joindre Leboncoin (réseau ou protection anti-bot). Réessaie plus tard ou utilise la saisie manuelle.",
     };
