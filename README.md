@@ -4,7 +4,7 @@ Site privé de suivi d'annonces immobilières Leboncoin : archivage local comple
 
 ## Prérequis
 
-- Node.js ≥ 20.9
+- Node.js ≥ 22.14 (better-sqlite3 v13 segfault à l'ouverture de base en dessous)
 - npm
 
 ## Démarrage
@@ -33,7 +33,7 @@ Les données restent sur le serveur et **survivent aux redémarrages** : base SQ
 
 Chromium (Playwright) a des builds officiels `linux-arm64` : la récupération Leboncoin fonctionne sur Orange Pi. Sur un serveur sans écran, la navigation se fait automatiquement en headless (le mode « avec fenêtre » est réservé aux machines avec affichage, comme le Mac de dev).
 
-1. **Node.js ≥ 20.9** (Debian 12 fournit Node 18) :
+1. **Node.js ≥ 22.14** (Debian 12 fournit Node 18) :
    ```bash
    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
    sudo apt install -y nodejs git
